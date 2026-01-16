@@ -393,6 +393,7 @@
         <div id="modePanel">
             <h1>SOS Multiplayer</h1>
             <button id="localBtn">Local Multiplayer</button>
+            <button id="aiBtn" style="background:#8b5cf6;">Play vs AI</button>
             <button id="createOnlineBtn" style="background:#10b981;">Create Online Game</button>
             <button id="joinOnlineBtn" style="background:#f59e0b;">Join Online Game</button>
         </div>
@@ -454,8 +455,27 @@
 
             <div id="playersContainer" class="player-setup"></div>
 
-            <label>Grid Size (3 - 20)</label>
-            <input id="gridSize" type="number" min="3" max="20" value="8">
+            <div style="display:flex; gap:10px; align-items:center; margin-top:16px;">
+                <input type="checkbox" id="customSizeCheck" style="width:auto;">
+                <label for="customSizeCheck" style="margin:0;">Custom Board Size</label>
+            </div>
+
+            <div id="squareSize">
+                <label>Grid Size (3 - 20)</label>
+                <input id="gridSize" type="number" min="3" max="20" value="8">
+            </div>
+
+            <div id="customSize" class="hidden"
+                style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px;">
+                <div>
+                    <label>Width (3 - 20)</label>
+                    <input id="gridWidth" type="number" min="3" max="20" value="8">
+                </div>
+                <div>
+                    <label>Height (3 - 20)</label>
+                    <input id="gridHeight" type="number" min="3" max="20" value="8">
+                </div>
+            </div>
 
             <button id="startBtn">Start Game</button>
             <button class="secondary" id="backBtn"
@@ -463,6 +483,58 @@
             <div style="margin-top:16px; font-size:12px; color:#64748b; text-align:center;">
                 Rules: Place S or O. Form "SOS" horizontally, vertically, or diagonally to score and move again.
             </div>
+        </div>
+
+        <!-- AI SETUP PANEL -->
+        <div id="aiSetupPanel" class="hidden">
+            <h1>Play vs AI</h1>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                <div>
+                    <label>Your Name</label>
+                    <input id="aiPlayerName" type="text" value="Player">
+                    <label>Your Color</label>
+                    <input id="aiPlayerColor" type="color" value="#3b82f6">
+                </div>
+                <div>
+                    <label>AI Name</label>
+                    <input id="aiName" type="text" value="AI">
+                    <label>AI Color</label>
+                    <input id="aiColor" type="color" value="#ef4444">
+                </div>
+            </div>
+
+            <label>AI Difficulty</label>
+            <select id="aiDifficulty">
+                <option value="easy">Easy (Random)</option>
+                <option value="medium" selected>Medium (Smart)</option>
+            </select>
+
+            <div style="display:flex; gap:10px; align-items:center; margin-top:16px;">
+                <input type="checkbox" id="customSizeCheckAI" style="width:auto;">
+                <label for="customSizeCheckAI" style="margin:0;">Custom Board Size</label>
+            </div>
+
+            <div id="squareSizeAI">
+                <label>Grid Size (3 - 20)</label>
+                <input id="gridSizeAI" type="number" min="3" max="20" value="8">
+            </div>
+
+            <div id="customSizeAI" class="hidden"
+                style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px;">
+                <div>
+                    <label>Width (3 - 20)</label>
+                    <input id="gridWidthAI" type="number" min="3" max="20" value="8">
+                </div>
+                <div>
+                    <label>Height (3 - 20)</label>
+                    <input id="gridHeightAI" type="number" min="3" max="20" value="8">
+                </div>
+            </div>
+
+            <button id="startAIBtn">Start Game</button>
+            <button class="secondary" id="backAIBtn"
+                style="width:auto;display:inline-block;margin-top:10px;">Back</button>
         </div>
 
         <!-- GAME UI -->
@@ -537,9 +609,23 @@
 
         // Mode buttons
         const localBtn = document.getElementById('localBtn');
+        const aiBtn = document.getElementById('aiBtn');
         const createOnlineBtn = document.getElementById('createOnlineBtn');
         const joinOnlineBtn = document.getElementById('joinOnlineBtn');
         const backToModeBtn = document.getElementById('backToModeBtn');
+
+        // AI setup elements
+        const aiSetupPanel = document.getElementById('aiSetupPanel');
+        const startAIBtn = document.getElementById('startAIBtn');
+        const backAIBtn = document.getElementById('backAIBtn');
+        const customSizeCheckAI = document.getElementById('customSizeCheckAI');
+        const squareSizeAI = document.getElementById('squareSizeAI');
+        const customSizeAI = document.getElementById('customSizeAI');
+
+        // Custom size elements
+        const customSizeCheck = document.getElementById('customSizeCheck');
+        const squareSize = document.getElementById('squareSize');
+        const customSize = document.getElementById('customSize');
 
         // Lobby elements
         const createLobby = document.getElementById('createLobby');
@@ -572,12 +658,16 @@
 
         // Game State
         let n = 8;
+        let boardWidth = 8;
+        let boardHeight = 8;
         let board = [];
         let players = [];
         let current = 0;
         let scores = [];
         let matchedSet = new Set();
         let history = [];
+        let aiEnabled = false;
+        let aiPlayerIndex = -1;
 
         // ============ UTILITY FUNCTIONS ============
         function generateRoomCode() {
@@ -596,9 +686,17 @@
         // ============ MODE SELECTION ============
         localBtn.addEventListener('click', () => {
             isOnlineMode = false;
+            aiEnabled = false;
             modePanel.classList.add('hidden');
             setupPanel.classList.remove('hidden');
             createPlayerInputs();
+        });
+
+        aiBtn.addEventListener('click', () => {
+            isOnlineMode = false;
+            aiEnabled = true;
+            modePanel.classList.add('hidden');
+            aiSetupPanel.classList.remove('hidden');
         });
 
         createOnlineBtn.addEventListener('click', () => {
@@ -607,6 +705,7 @@
                 return;
             }
             isOnlineMode = true;
+            aiEnabled = false;
             modePanel.classList.add('hidden');
             lobbyPanel.classList.remove('hidden');
             createLobby.classList.remove('hidden');
@@ -620,6 +719,7 @@
                 return;
             }
             isOnlineMode = true;
+            aiEnabled = false;
             modePanel.classList.add('hidden');
             lobbyPanel.classList.remove('hidden');
             createLobby.classList.add('hidden');
@@ -631,12 +731,39 @@
             if (roomRef) roomRef.off();
             lobbyPanel.classList.add('hidden');
             setupPanel.classList.add('hidden');
+            aiSetupPanel.classList.add('hidden');
             modePanel.classList.remove('hidden');
         });
 
         backBtn.addEventListener('click', () => {
             setupPanel.classList.add('hidden');
             modePanel.classList.remove('hidden');
+        });
+
+        backAIBtn.addEventListener('click', () => {
+            aiSetupPanel.classList.add('hidden');
+            modePanel.classList.remove('hidden');
+        });
+
+        // Custom size toggles
+        customSizeCheck.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                squareSize.classList.add('hidden');
+                customSize.classList.remove('hidden');
+            } else {
+                squareSize.classList.remove('hidden');
+                customSize.classList.add('hidden');
+            }
+        });
+
+        customSizeCheckAI.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                squareSizeAI.classList.add('hidden');
+                customSizeAI.classList.remove('hidden');
+            } else {
+                squareSizeAI.classList.remove('hidden');
+                customSizeAI.classList.add('hidden');
+            }
         });
 
         // ============ ONLINE ROOM CREATION ============
@@ -766,13 +893,14 @@
                 .sort(([, a], [, b]) => a.index - b.index)
                 .map(([id, p]) => ({ id, ...p }));
 
-            n = data.gridSize;
+            boardWidth = data.gridSize;
+            boardHeight = data.gridSize;
 
             // Create clean initial board with no undefined values
             const initialBoard = [];
-            for (let r = 0; r < n; r++) {
+            for (let r = 0; r < boardHeight; r++) {
                 initialBoard[r] = [];
-                for (let c = 0; c < n; c++) {
+                for (let c = 0; c < boardWidth; c++) {
                     initialBoard[r][c] = null;
                 }
             }
@@ -833,7 +961,7 @@
                 const state = snapshot.val();
                 if (!state) return;
 
-                board = convertFirebaseBoard(state.board, n);
+                board = convertFirebaseBoard(state.board, boardHeight, boardWidth);
                 current = state.current || 0;
                 scores = Array.isArray(state.scores) ? state.scores : Object.values(state.scores || {});
                 if (scores.length === 0) scores = Array(players.length).fill(0);
@@ -859,20 +987,21 @@
                     });
                 }
 
-                if (state.gameOver && history.length > 0) {
+                // Game over condition - check even for empty board
+                if (state.gameOver) {
                     setTimeout(() => endGame(), 500);
                 }
             });
         }
 
         // Convert Firebase board to proper 2D array
-        function convertFirebaseBoard(fbBoard, size) {
+        function convertFirebaseBoard(fbBoard, height, width) {
             const newBoard = [];
 
             // Initialize with null values
-            for (let r = 0; r < size; r++) {
+            for (let r = 0; r < height; r++) {
                 newBoard[r] = [];
-                for (let c = 0; c < size; c++) {
+                for (let c = 0; c < width; c++) {
                     newBoard[r][c] = null;
                 }
             }
@@ -881,17 +1010,17 @@
 
             // Handle both array and object formats
             if (Array.isArray(fbBoard)) {
-                for (let r = 0; r < size && r < fbBoard.length; r++) {
+                for (let r = 0; r < height && r < fbBoard.length; r++) {
                     if (fbBoard[r]) {
                         if (Array.isArray(fbBoard[r])) {
-                            for (let c = 0; c < size && c < fbBoard[r].length; c++) {
+                            for (let c = 0; c < width && c < fbBoard[r].length; c++) {
                                 const val = fbBoard[r][c];
                                 newBoard[r][c] = (val === undefined || val === null) ? null : val;
                             }
                         } else {
                             // Row is an object
                             const rowData = fbBoard[r];
-                            for (let c = 0; c < size; c++) {
+                            for (let c = 0; c < width; c++) {
                                 const val = rowData[c];
                                 newBoard[r][c] = (val === undefined || val === null) ? null : val;
                             }
@@ -900,16 +1029,16 @@
                 }
             } else {
                 // fbBoard is an object
-                for (let r = 0; r < size; r++) {
+                for (let r = 0; r < height; r++) {
                     if (fbBoard[r]) {
                         const rowData = fbBoard[r];
                         if (Array.isArray(rowData)) {
-                            for (let c = 0; c < size && c < rowData.length; c++) {
+                            for (let c = 0; c < width && c < rowData.length; c++) {
                                 const val = rowData[c];
                                 newBoard[r][c] = (val === undefined || val === null) ? null : val;
                             }
                         } else {
-                            for (let c = 0; c < size; c++) {
+                            for (let c = 0; c < width; c++) {
                                 const val = rowData[c];
                                 newBoard[r][c] = (val === undefined || val === null) ? null : val;
                             }
@@ -921,7 +1050,16 @@
             return newBoard;
         }
 
+        let lastBoardState = null;
+
         function redrawBoard() {
+            // Create a snapshot of current board state
+            const currentState = JSON.stringify(board);
+
+            // Only redraw if something actually changed
+            if (currentState === lastBoardState) return;
+            lastBoardState = currentState;
+
             document.querySelectorAll('.cell').forEach(cell => {
                 const r = parseInt(cell.dataset.r);
                 const c = parseInt(cell.dataset.c);
@@ -932,15 +1070,19 @@
                 const cellData = board[r][c];
 
                 if (cellData) {
-                    cell.textContent = cellData.val;
-                    cell.style.color = cellData.color;
-                    cell.classList.add('filled');
+                    if (cell.textContent !== cellData.val || cell.style.color !== cellData.color) {
+                        cell.textContent = cellData.val;
+                        cell.style.color = cellData.color;
+                        cell.classList.add('filled');
+                    }
                 } else {
-                    cell.textContent = '';
-                    cell.style.color = '';
-                    cell.classList.remove('filled');
-                    cell.style.boxShadow = '';
-                    cell.style.background = '';
+                    if (cell.textContent !== '') {
+                        cell.textContent = '';
+                        cell.style.color = '';
+                        cell.classList.remove('filled');
+                        cell.style.boxShadow = '';
+                        cell.style.background = '';
+                    }
                 }
             });
         }
@@ -966,8 +1108,20 @@
         playerCountSelect.addEventListener('change', createPlayerInputs);
 
         startBtn.addEventListener('click', () => {
-            n = parseInt(gridSizeIn.value);
-            if (n < 3) n = 3; if (n > 20) n = 20;
+            const customSizeEnabled = customSizeCheck.checked;
+
+            if (customSizeEnabled) {
+                boardWidth = parseInt(document.getElementById('gridWidth').value);
+                boardHeight = parseInt(document.getElementById('gridHeight').value);
+                if (boardWidth < 3) boardWidth = 3;
+                if (boardWidth > 20) boardWidth = 20;
+                if (boardHeight < 3) boardHeight = 3;
+                if (boardHeight > 20) boardHeight = 20;
+            } else {
+                const size = parseInt(gridSizeIn.value);
+                boardWidth = size < 3 ? 3 : (size > 20 ? 20 : size);
+                boardHeight = boardWidth;
+            }
 
             const count = parseInt(playerCountSelect.value);
             players = [];
@@ -986,7 +1140,47 @@
 
             setupPanel.classList.add('hidden');
             gameUI.classList.remove('hidden');
-            log(`Game started: ${players.map(p => p.name).join(' vs ')} (${n}x${n})`);
+            log(`Game started: ${players.map(p => p.name).join(' vs ')} (${boardWidth}x${boardHeight})`);
+        });
+
+        // ============ AI MODE ============
+        startAIBtn.addEventListener('click', () => {
+            const customSizeEnabled = customSizeCheckAI.checked;
+
+            if (customSizeEnabled) {
+                boardWidth = parseInt(document.getElementById('gridWidthAI').value);
+                boardHeight = parseInt(document.getElementById('gridHeightAI').value);
+                if (boardWidth < 3) boardWidth = 3;
+                if (boardWidth > 20) boardWidth = 20;
+                if (boardHeight < 3) boardHeight = 3;
+                if (boardHeight > 20) boardHeight = 20;
+            } else {
+                const size = parseInt(document.getElementById('gridSizeAI').value);
+                boardWidth = size < 3 ? 3 : (size > 20 ? 20 : size);
+                boardHeight = boardWidth;
+            }
+
+            players = [
+                {
+                    name: document.getElementById('aiPlayerName').value || 'Player',
+                    color: document.getElementById('aiPlayerColor').value,
+                    isAI: false
+                },
+                {
+                    name: document.getElementById('aiName').value || 'AI',
+                    color: document.getElementById('aiColor').value,
+                    isAI: true
+                }
+            ];
+
+            aiPlayerIndex = 1;
+
+            resetGame();
+            createPlayerCards();
+
+            aiSetupPanel.classList.add('hidden');
+            gameUI.classList.remove('hidden');
+            log(`AI Game started: ${players[0].name} vs ${players[1].name} (${boardWidth}x${boardHeight})`);
         });
 
         menuBtn.addEventListener('click', () => {
@@ -1024,9 +1218,9 @@
 
                 // Reset game state in Firebase with clean board
                 const initialBoard = [];
-                for (let r = 0; r < n; r++) {
+                for (let r = 0; r < boardHeight; r++) {
                     initialBoard[r] = [];
-                    for (let c = 0; c < n; c++) {
+                    for (let c = 0; c < boardWidth; c++) {
                         initialBoard[r][c] = null;
                     }
                 }
@@ -1046,6 +1240,11 @@
                 // Local reset will happen via Firebase listener
             } else {
                 resetGame();
+
+                // If AI game, check if AI goes first
+                if (aiEnabled && current === aiPlayerIndex) {
+                    setTimeout(() => makeAIMove(), 800);
+                }
             }
         });
 
@@ -1053,8 +1252,10 @@
             gameUI.classList.add('hidden');
             setupPanel.classList.add('hidden');
             lobbyPanel.classList.add('hidden');
+            aiSetupPanel.classList.add('hidden');
             modePanel.classList.remove('hidden');
             isOnlineMode = false;
+            aiEnabled = false;
             roomCode = null;
         }
 
@@ -1111,9 +1312,9 @@
         function resetGame() {
             // Create clean board with no undefined values
             board = [];
-            for (let r = 0; r < n; r++) {
+            for (let r = 0; r < boardHeight; r++) {
                 board[r] = [];
-                for (let c = 0; c < n; c++) {
+                for (let c = 0; c < boardWidth; c++) {
                     board[r][c] = null;
                 }
             }
@@ -1134,15 +1335,19 @@
         function renderBoardGrid() {
             boardEl.innerHTML = '';
             const maxSize = 650;
-            const totalGap = (n - 1) * 4;
-            const cellSize = Math.floor((maxSize - totalGap) / n);
+            const totalGapWidth = (boardWidth - 1) * 4;
+            const totalGapHeight = (boardHeight - 1) * 4;
+            const cellWidth = Math.floor((maxSize - totalGapWidth) / boardWidth);
+            const cellHeight = Math.floor((maxSize - totalGapHeight) / boardHeight);
+            const cellSize = Math.min(cellWidth, cellHeight);
 
-            boardEl.style.gridTemplateColumns = `repeat(${n}, 1fr)`;
+            boardEl.style.gridTemplateColumns = `repeat(${boardWidth}, ${cellSize}px)`;
+            boardEl.style.gridTemplateRows = `repeat(${boardHeight}, ${cellSize}px)`;
             boardEl.style.width = 'fit-content';
             boardEl.style.setProperty('--cell-size', cellSize + 'px');
 
-            for (let r = 0; r < n; r++) {
-                for (let c = 0; c < n; c++) {
+            for (let r = 0; r < boardHeight; r++) {
+                for (let c = 0; c < boardWidth; c++) {
                     const cell = document.createElement('div');
                     cell.className = 'cell';
                     cell.dataset.r = r;
@@ -1159,6 +1364,11 @@
 
             // Defensive check for board structure
             if (!board[r] || board[r][c] !== null) return;
+
+            // Disable clicks if it's AI's turn
+            if (aiEnabled && current === aiPlayerIndex) {
+                return;
+            }
 
             // Check if it's this player's turn in online mode
             if (isOnlineMode) {
@@ -1206,9 +1416,9 @@
         // Clean board data for Firebase (no undefined values allowed)
         function cleanBoardForFirebase(board) {
             const cleaned = [];
-            for (let r = 0; r < n; r++) {
+            for (let r = 0; r < boardHeight; r++) {
                 cleaned[r] = [];
-                for (let c = 0; c < n; c++) {
+                for (let c = 0; c < boardWidth; c++) {
                     const cell = board[r] ? board[r][c] : null;
                     cleaned[r][c] = (cell === undefined || cell === null) ? null : cell;
                 }
@@ -1276,7 +1486,12 @@
                 }
             }
 
-            if (isFull()) endGame();
+            if (isFull()) {
+                endGame();
+            } else if (aiEnabled && current === aiPlayerIndex) {
+                // AI's turn
+                setTimeout(() => makeAIMove(), 800);
+            }
         }
 
         function checkSOS(r, c) {
@@ -1284,7 +1499,7 @@
             let matches = [];
 
             const getVal = (row, col) => {
-                if (row < 0 || col < 0 || row >= n || col >= n) return '';
+                if (row < 0 || col < 0 || row >= boardHeight || col >= boardWidth) return '';
                 if (!board[row] || !board[row][col]) return '';
                 return board[row][col].val || '';
             };
@@ -1308,6 +1523,108 @@
                 });
             });
             return matches;
+        }
+
+        // ============ AI LOGIC ============
+        function makeAIMove() {
+            const difficulty = document.getElementById('aiDifficulty')?.value || 'medium';
+
+            let move = null;
+
+            if (difficulty === 'medium') {
+                // Try to score first
+                move = findScoringMove();
+
+                // If no scoring move, try to block opponent
+                if (!move) {
+                    move = findBlockingMove();
+                }
+            }
+
+            // If no smart move found, make random move
+            if (!move) {
+                move = findRandomMove();
+            }
+
+            if (move) {
+                makeMove(move.r, move.c, move.letter);
+            }
+        }
+
+        function findScoringMove() {
+            // Try each empty cell with both S and O
+            for (let r = 0; r < boardHeight; r++) {
+                for (let c = 0; c < boardWidth; c++) {
+                    if (board[r][c] === null) {
+                        // Try S
+                        board[r][c] = { val: 'S', color: players[current].color };
+                        const matchesS = checkSOS(r, c);
+                        board[r][c] = null;
+
+                        if (matchesS.length > 0) {
+                            return { r, c, letter: 'S' };
+                        }
+
+                        // Try O
+                        board[r][c] = { val: 'O', color: players[current].color };
+                        const matchesO = checkSOS(r, c);
+                        board[r][c] = null;
+
+                        if (matchesO.length > 0) {
+                            return { r, c, letter: 'O' };
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
+        function findBlockingMove() {
+            // Check if opponent can score on next turn
+            const opponentIdx = (current + 1) % players.length;
+
+            for (let r = 0; r < boardHeight; r++) {
+                for (let c = 0; c < boardWidth; c++) {
+                    if (board[r][c] === null) {
+                        // Check if opponent can score with S
+                        board[r][c] = { val: 'S', color: players[opponentIdx].color };
+                        const matchesS = checkSOS(r, c);
+                        board[r][c] = null;
+
+                        if (matchesS.length > 0) {
+                            // Block with random letter
+                            return { r, c, letter: Math.random() > 0.5 ? 'S' : 'O' };
+                        }
+
+                        // Check if opponent can score with O
+                        board[r][c] = { val: 'O', color: players[opponentIdx].color };
+                        const matchesO = checkSOS(r, c);
+                        board[r][c] = null;
+
+                        if (matchesO.length > 0) {
+                            return { r, c, letter: Math.random() > 0.5 ? 'S' : 'O' };
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
+        function findRandomMove() {
+            const emptyCells = [];
+            for (let r = 0; r < boardHeight; r++) {
+                for (let c = 0; c < boardWidth; c++) {
+                    if (board[r][c] === null) {
+                        emptyCells.push({ r, c });
+                    }
+                }
+            }
+
+            if (emptyCells.length > 0) {
+                const cell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+                return { ...cell, letter: Math.random() > 0.5 ? 'S' : 'O' };
+            }
+            return null;
         }
 
         function drawLine(coords, color) {
@@ -1365,7 +1682,7 @@
         }
 
         function isFull() {
-            return history.length === (n * n);
+            return history.length === (boardWidth * boardHeight);
         }
 
         function endGame() {
