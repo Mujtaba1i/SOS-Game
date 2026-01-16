@@ -501,15 +501,15 @@
 
     <script>
         // ============ FIREBASE CONFIG ============
-    const firebaseConfig = {
-            apiKey: "AIzaSyC6hSxIsfCADnYtnRJsmYMzbT2RmyLX0wc",
-            authDomain: "sos-game-55b45.firebaseapp.com",
-            databaseURL: "https://sos-game-55b45-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "sos-game-55b45",
-            storageBucket: "sos-game-55b45.firebasestorage.app",
-            messagingSenderId: "134808829880",
-            appId: "1:134808829880:web:846ae8a2eb9fd2c85ad94d"
-        };
+        const firebaseConfig = {
+                apiKey: "AIzaSyC6hSxIsfCADnYtnRJsmYMzbT2RmyLX0wc",
+                authDomain: "sos-game-55b45.firebaseapp.com",
+                databaseURL: "https://sos-game-55b45-default-rtdb.asia-southeast1.firebasedatabase.app",
+                projectId: "sos-game-55b45",
+                storageBucket: "sos-game-55b45.firebasestorage.app",
+                messagingSenderId: "134808829880",
+                appId: "1:134808829880:web:846ae8a2eb9fd2c85ad94d"
+            };
 
         // Initialize Firebase
         let db = null;
@@ -768,8 +768,17 @@
 
             n = data.gridSize;
 
+            // Create clean initial board with no undefined values
+            const initialBoard = [];
+            for (let r = 0; r < n; r++) {
+                initialBoard[r] = [];
+                for (let c = 0; c < n; c++) {
+                    initialBoard[r][c] = null;
+                }
+            }
+
             const initialState = {
-                board: Array(n).fill(null).map(() => Array(n).fill(null)),
+                board: initialBoard,
                 current: 0,
                 scores: Array(players.length).fill(0),
                 history: [],
@@ -779,16 +788,17 @@
             };
 
             await roomRef.update({
-                gameStarted: true,
-                gameState: initialState
+                gameStarted: true
             });
+
+            await roomRef.child('gameState').set(initialState);
 
             // Wait a bit for Firebase to sync, then load
             setTimeout(() => {
                 roomRef.once('value').then(snap => {
                     loadOnlineGame(snap.val());
                 });
-            }, 500);
+            }, 300);
         });
 
         function loadOnlineGame(data) {
@@ -857,7 +867,15 @@
 
         // Convert Firebase board to proper 2D array
         function convertFirebaseBoard(fbBoard, size) {
-            const newBoard = Array.from({ length: size }, () => Array(size).fill(null));
+            const newBoard = [];
+
+            // Initialize with null values
+            for (let r = 0; r < size; r++) {
+                newBoard[r] = [];
+                for (let c = 0; c < size; c++) {
+                    newBoard[r][c] = null;
+                }
+            }
 
             if (!fbBoard) return newBoard;
 
@@ -867,15 +885,15 @@
                     if (fbBoard[r]) {
                         if (Array.isArray(fbBoard[r])) {
                             for (let c = 0; c < size && c < fbBoard[r].length; c++) {
-                                newBoard[r][c] = fbBoard[r][c];
+                                const val = fbBoard[r][c];
+                                newBoard[r][c] = (val === undefined || val === null) ? null : val;
                             }
                         } else {
                             // Row is an object
                             const rowData = fbBoard[r];
                             for (let c = 0; c < size; c++) {
-                                if (rowData[c] !== undefined) {
-                                    newBoard[r][c] = rowData[c];
-                                }
+                                const val = rowData[c];
+                                newBoard[r][c] = (val === undefined || val === null) ? null : val;
                             }
                         }
                     }
@@ -887,13 +905,13 @@
                         const rowData = fbBoard[r];
                         if (Array.isArray(rowData)) {
                             for (let c = 0; c < size && c < rowData.length; c++) {
-                                newBoard[r][c] = rowData[c];
+                                const val = rowData[c];
+                                newBoard[r][c] = (val === undefined || val === null) ? null : val;
                             }
                         } else {
                             for (let c = 0; c < size; c++) {
-                                if (rowData[c] !== undefined) {
-                                    newBoard[r][c] = rowData[c];
-                                }
+                                const val = rowData[c];
+                                newBoard[r][c] = (val === undefined || val === null) ? null : val;
                             }
                         }
                     }
@@ -1004,9 +1022,17 @@
                     return;
                 }
 
-                // Reset game state in Firebase
+                // Reset game state in Firebase with clean board
+                const initialBoard = [];
+                for (let r = 0; r < n; r++) {
+                    initialBoard[r] = [];
+                    for (let c = 0; c < n; c++) {
+                        initialBoard[r][c] = null;
+                    }
+                }
+
                 const initialState = {
-                    board: Array(n).fill(null).map(() => Array(n).fill(null)),
+                    board: initialBoard,
                     current: 0,
                     scores: Array(players.length).fill(0),
                     history: [],
@@ -1083,7 +1109,15 @@
         }
 
         function resetGame() {
-            board = Array.from({ length: n }, () => Array.from({ length: n }, () => null));
+            // Create clean board with no undefined values
+            board = [];
+            for (let r = 0; r < n; r++) {
+                board[r] = [];
+                for (let c = 0; c < n; c++) {
+                    board[r][c] = null;
+                }
+            }
+
             matchedSet.clear();
             history = [];
             scores = Array(players.length).fill(0);
@@ -1169,6 +1203,19 @@
             }, 0);
         }
 
+        // Clean board data for Firebase (no undefined values allowed)
+        function cleanBoardForFirebase(board) {
+            const cleaned = [];
+            for (let r = 0; r < n; r++) {
+                cleaned[r] = [];
+                for (let c = 0; c < n; c++) {
+                    const cell = board[r] ? board[r][c] : null;
+                    cleaned[r][c] = (cell === undefined || cell === null) ? null : cell;
+                }
+            }
+            return cleaned;
+        }
+
         async function makeMove(r, c, letter) {
             document.querySelectorAll('.chooser').forEach(el => el.remove());
 
@@ -1206,8 +1253,11 @@
                     const currentState = snapshot.val() || {};
                     const existingLines = currentState.matchedLines || [];
 
-                    await roomRef.child('gameState').update({
-                        board: board,
+                    // Clean board data - remove any undefined values
+                    const cleanedBoard = cleanBoardForFirebase(board);
+
+                    await roomRef.child('gameState').set({
+                        board: cleanedBoard,
                         current: current,
                         scores: scores,
                         history: history,
@@ -1217,6 +1267,12 @@
                     });
                 } catch (error) {
                     console.error('Firebase update error:', error);
+                    // Try to recover by reloading state
+                    const snapshot = await roomRef.once('value');
+                    const data = snapshot.val();
+                    if (data && data.gameState) {
+                        loadOnlineGame(data);
+                    }
                 }
             }
 
