@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>SOS — Multiplayer Custom Game</title>
+    <title>SOS — Multiplayer Game</title>
     <style>
         :root {
             --gap: 4px;
@@ -40,7 +40,9 @@
         }
 
         /* --- SETUP PANEL --- */
-        #setupPanel {
+        #setupPanel,
+        #modePanel,
+        #lobbyPanel {
             background: var(--panel-bg);
             padding: 30px;
             border-radius: 16px;
@@ -127,6 +129,40 @@
             border-radius: 8px;
             background: rgba(0, 0, 0, 0.2);
             border: 1px solid #334155;
+        }
+
+        .room-code {
+            font-size: 36px;
+            font-weight: 800;
+            text-align: center;
+            letter-spacing: 8px;
+            color: #3b82f6;
+            margin: 20px 0;
+            padding: 20px;
+            background: rgba(59, 130, 246, 0.1);
+            border-radius: 12px;
+            border: 2px solid #3b82f6;
+        }
+
+        .waiting {
+            text-align: center;
+            color: #94a3b8;
+            margin: 20px 0;
+        }
+
+        .player-list {
+            margin: 20px 0;
+        }
+
+        .player-item {
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid #334155;
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
 
         /* --- GAME UI --- */
@@ -353,8 +389,60 @@
 
     <div class="container">
 
-        <div id="setupPanel">
-            <h1>SOS Multiplayer Setup</h1>
+        <!-- MODE SELECTION -->
+        <div id="modePanel">
+            <h1>SOS Multiplayer</h1>
+            <button id="localBtn">Local Multiplayer</button>
+            <button id="createOnlineBtn" style="background:#10b981;">Create Online Game</button>
+            <button id="joinOnlineBtn" style="background:#f59e0b;">Join Online Game</button>
+        </div>
+
+        <!-- LOBBY PANEL -->
+        <div id="lobbyPanel" class="hidden">
+            <h1 id="lobbyTitle">Game Lobby</h1>
+
+            <div id="createLobby" class="hidden">
+                <label>Your Name</label>
+                <input id="hostName" type="text" value="Player 1">
+                <label>Your Color</label>
+                <input id="hostColor" type="color" value="#3b82f6">
+                <label>Number of Players</label>
+                <select id="onlinePlayerCount">
+                    <option value="2">2 Players</option>
+                    <option value="3">3 Players</option>
+                    <option value="4">4 Players</option>
+                    <option value="5">5 Players</option>
+                </select>
+                <label>Grid Size (3 - 20)</label>
+                <input id="onlineGridSize" type="number" min="3" max="20" value="8">
+                <button id="createRoomBtn">Create Room</button>
+            </div>
+
+            <div id="joinLobby" class="hidden">
+                <label>Your Name</label>
+                <input id="guestName" type="text" value="Player 2">
+                <label>Your Color</label>
+                <input id="guestColor" type="color" value="#ef4444">
+                <label>Room Code</label>
+                <input id="roomCodeInput" type="text" placeholder="Enter 6-character code" maxlength="6"
+                    style="text-transform:uppercase;">
+                <button id="joinRoomBtn">Join Room</button>
+            </div>
+
+            <div id="waitingRoom" class="hidden">
+                <div class="room-code" id="displayRoomCode"></div>
+                <div class="waiting">Share this code with other players</div>
+                <div class="player-list" id="playerList"></div>
+                <button id="startOnlineBtn">Start Game</button>
+            </div>
+
+            <button class="secondary" id="backToModeBtn"
+                style="width:auto;display:inline-block;margin-top:10px;">Back</button>
+        </div>
+
+        <!-- LOCAL SETUP PANEL -->
+        <div id="setupPanel" class="hidden">
+            <h1>Local Multiplayer Setup</h1>
 
             <label>Number of Players</label>
             <select id="playerCount">
@@ -370,11 +458,14 @@
             <input id="gridSize" type="number" min="3" max="20" value="8">
 
             <button id="startBtn">Start Game</button>
+            <button class="secondary" id="backBtn"
+                style="width:auto;display:inline-block;margin-top:10px;">Back</button>
             <div style="margin-top:16px; font-size:12px; color:#64748b; text-align:center;">
                 Rules: Place S or O. Form "SOS" horizontally, vertically, or diagonally to score and move again.
             </div>
         </div>
 
+        <!-- GAME UI -->
         <div id="gameUI" class="hidden">
 
             <div class="game-header" id="playerCardsContainer">
@@ -390,6 +481,7 @@
         </div>
     </div>
 
+    <!-- GAME OVER MODAL -->
     <div id="gameOverModal" class="modal-overlay hidden">
         <div class="modal-content">
             <div id="winnerText" class="modal-title">PLAYER WINS</div>
@@ -403,33 +495,82 @@
         </div>
     </div>
 
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
     <script>
+        // ============ FIREBASE CONFIG ============
+        const firebaseConfig = {
+            apiKey: "AIzaSyC6hSxIsfCADnYtnRJsmYMzbT2RmyLX0wc",
+            authDomain: "sos-game-55b45.firebaseapp.com",
+            databaseURL: "https://sos-game-55b45-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "sos-game-55b45",
+            storageBucket: "sos-game-55b45.firebasestorage.app",
+            messagingSenderId: "134808829880",
+            appId: "1:134808829880:web:846ae8a2eb9fd2c85ad94d"
+        };
+
+        // Initialize Firebase
+        let db = null;
+        let isOnlineMode = false;
+        let roomCode = null;
+        let roomRef = null;
+        let myPlayerId = null;
+
+        try {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.database();
+        } catch (e) {
+            console.warn("Firebase not configured:", e);
+        }
+
         // DOM Elements
+        const modePanel = document.getElementById('modePanel');
         const setupPanel = document.getElementById('setupPanel');
+        const lobbyPanel = document.getElementById('lobbyPanel');
         const gameUI = document.getElementById('gameUI');
-        const startBtn = document.getElementById('startBtn');
-        const menuBtn = document.getElementById('menuBtn');
         const boardEl = document.getElementById('board');
         const svg = document.getElementById('svgLayer');
         const logEl = document.getElementById('log');
-        const playerCountSelect = document.getElementById('playerCount');
-        const playersContainer = document.getElementById('playersContainer');
         const playerCardsContainer = document.getElementById('playerCardsContainer');
 
-        // Modal Elements
+        // Mode buttons
+        const localBtn = document.getElementById('localBtn');
+        const createOnlineBtn = document.getElementById('createOnlineBtn');
+        const joinOnlineBtn = document.getElementById('joinOnlineBtn');
+        const backToModeBtn = document.getElementById('backToModeBtn');
+
+        // Lobby elements
+        const createLobby = document.getElementById('createLobby');
+        const joinLobby = document.getElementById('joinLobby');
+        const waitingRoom = document.getElementById('waitingRoom');
+        const createRoomBtn = document.getElementById('createRoomBtn');
+        const joinRoomBtn = document.getElementById('joinRoomBtn');
+        const startOnlineBtn = document.getElementById('startOnlineBtn');
+        const displayRoomCode = document.getElementById('displayRoomCode');
+        const playerList = document.getElementById('playerList');
+
+        // Local game elements
+        const startBtn = document.getElementById('startBtn');
+        const backBtn = document.getElementById('backBtn');
+        const menuBtn = document.getElementById('menuBtn');
+        const playerCountSelect = document.getElementById('playerCount');
+        const playersContainer = document.getElementById('playersContainer');
+        const gridSizeIn = document.getElementById('gridSize');
+
+        // Modal
         const modal = document.getElementById('gameOverModal');
         const winnerText = document.getElementById('winnerText');
         const finalScore = document.getElementById('finalScore');
         const modalRestartBtn = document.getElementById('modalRestartBtn');
         const modalMenuBtn = document.getElementById('modalMenuBtn');
 
-        const gridSizeIn = document.getElementById('gridSize');
-
-        // Default colors for players
+        // Default colors and names
         const defaultColors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6'];
         const defaultNames = ['Blue', 'Red', 'Green', 'Orange', 'Purple'];
 
-        // State
+        // Game State
         let n = 8;
         let board = [];
         let players = [];
@@ -438,7 +579,274 @@
         let matchedSet = new Set();
         let history = [];
 
-        // Initialize player setup
+        // ============ UTILITY FUNCTIONS ============
+        function generateRoomCode() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let code = '';
+            for (let i = 0; i < 6; i++) {
+                code += chars[Math.floor(Math.random() * chars.length)];
+            }
+            return code;
+        }
+
+        function generatePlayerId() {
+            return 'player_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        // ============ MODE SELECTION ============
+        localBtn.addEventListener('click', () => {
+            isOnlineMode = false;
+            modePanel.classList.add('hidden');
+            setupPanel.classList.remove('hidden');
+            createPlayerInputs();
+        });
+
+        createOnlineBtn.addEventListener('click', () => {
+            if (!db) {
+                alert('Firebase not configured! Please follow setup instructions.');
+                return;
+            }
+            isOnlineMode = true;
+            modePanel.classList.add('hidden');
+            lobbyPanel.classList.remove('hidden');
+            createLobby.classList.remove('hidden');
+            joinLobby.classList.add('hidden');
+            waitingRoom.classList.add('hidden');
+        });
+
+        joinOnlineBtn.addEventListener('click', () => {
+            if (!db) {
+                alert('Firebase not configured! Please follow setup instructions.');
+                return;
+            }
+            isOnlineMode = true;
+            modePanel.classList.add('hidden');
+            lobbyPanel.classList.remove('hidden');
+            createLobby.classList.add('hidden');
+            joinLobby.classList.remove('hidden');
+            waitingRoom.classList.add('hidden');
+        });
+
+        backToModeBtn.addEventListener('click', () => {
+            if (roomRef) roomRef.off();
+            lobbyPanel.classList.add('hidden');
+            setupPanel.classList.add('hidden');
+            modePanel.classList.remove('hidden');
+        });
+
+        backBtn.addEventListener('click', () => {
+            setupPanel.classList.add('hidden');
+            modePanel.classList.remove('hidden');
+        });
+
+        // ============ ONLINE ROOM CREATION ============
+        createRoomBtn.addEventListener('click', async () => {
+            roomCode = generateRoomCode();
+            myPlayerId = generatePlayerId();
+
+            const hostName = document.getElementById('hostName').value || 'Player 1';
+            const hostColor = document.getElementById('hostColor').value;
+            const maxPlayers = parseInt(document.getElementById('onlinePlayerCount').value);
+            const gridSize = parseInt(document.getElementById('onlineGridSize').value);
+
+            const roomData = {
+                host: myPlayerId,
+                maxPlayers: maxPlayers,
+                gridSize: gridSize,
+                players: {
+                    [myPlayerId]: {
+                        name: hostName,
+                        color: hostColor,
+                        index: 0,
+                        isHost: true
+                    }
+                },
+                gameStarted: false,
+                gameState: null
+            };
+
+            await db.ref('rooms/' + roomCode).set(roomData);
+
+            displayRoomCode.textContent = roomCode;
+            createLobby.classList.add('hidden');
+            waitingRoom.classList.remove('hidden');
+
+            listenToRoom();
+        });
+
+        // ============ ONLINE ROOM JOINING ============
+        joinRoomBtn.addEventListener('click', async () => {
+            const code = document.getElementById('roomCodeInput').value.toUpperCase();
+            if (code.length !== 6) {
+                alert('Please enter a valid 6-character room code');
+                return;
+            }
+
+            const roomSnapshot = await db.ref('rooms/' + code).once('value');
+            if (!roomSnapshot.exists()) {
+                alert('Room not found!');
+                return;
+            }
+
+            const roomData = roomSnapshot.val();
+            const playerCount = Object.keys(roomData.players).length;
+
+            if (playerCount >= roomData.maxPlayers) {
+                alert('Room is full!');
+                return;
+            }
+
+            if (roomData.gameStarted) {
+                alert('Game already started!');
+                return;
+            }
+
+            roomCode = code;
+            myPlayerId = generatePlayerId();
+
+            const guestName = document.getElementById('guestName').value || 'Player ' + (playerCount + 1);
+            const guestColor = document.getElementById('guestColor').value;
+
+            await db.ref('rooms/' + roomCode + '/players/' + myPlayerId).set({
+                name: guestName,
+                color: guestColor,
+                index: playerCount,
+                isHost: false
+            });
+
+            displayRoomCode.textContent = roomCode;
+            joinLobby.classList.add('hidden');
+            waitingRoom.classList.remove('hidden');
+
+            listenToRoom();
+        });
+
+        // ============ LISTEN TO ROOM CHANGES ============
+        function listenToRoom() {
+            roomRef = db.ref('rooms/' + roomCode);
+
+            roomRef.on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (!data) return;
+
+                // Update player list
+                updatePlayerList(data.players);
+
+                // Check if game started
+                if (data.gameStarted && data.gameState) {
+                    loadOnlineGame(data);
+                }
+
+                // Show/hide start button
+                const isHost = data.players[myPlayerId]?.isHost;
+                startOnlineBtn.style.display = isHost ? 'block' : 'none';
+            });
+        }
+
+        function updatePlayerList(playersData) {
+            playerList.innerHTML = '';
+            Object.values(playersData).sort((a, b) => a.index - b.index).forEach(p => {
+                const div = document.createElement('div');
+                div.className = 'player-item';
+                div.innerHTML = `
+                    <div style="width:16px;height:16px;border-radius:50%;background:${p.color}"></div>
+                    <span>${p.name}</span>
+                    ${p.isHost ? '<span style="color:#10b981;margin-left:auto;">HOST</span>' : ''}
+                `;
+                playerList.appendChild(div);
+            });
+        }
+
+        // ============ START ONLINE GAME ============
+        startOnlineBtn.addEventListener('click', async () => {
+            const snapshot = await roomRef.once('value');
+            const data = snapshot.val();
+
+            players = Object.entries(data.players)
+                .sort(([, a], [, b]) => a.index - b.index)
+                .map(([id, p]) => ({ id, ...p }));
+
+            n = data.gridSize;
+
+            const initialState = {
+                board: Array.from({ length: n }, () => Array(n).fill(null)),
+                current: 0,
+                scores: Array(players.length).fill(0),
+                history: [],
+                matchedSet: []
+            };
+
+            await roomRef.update({
+                gameStarted: true,
+                gameState: initialState
+            });
+
+            loadOnlineGame(data);
+        });
+
+        function loadOnlineGame(data) {
+            lobbyPanel.classList.add('hidden');
+            gameUI.classList.remove('hidden');
+
+            players = Object.entries(data.players)
+                .sort(([, a], [, b]) => a.index - b.index)
+                .map(([id, p]) => ({ id, ...p }));
+
+            n = data.gridSize;
+            board = data.gameState.board;
+            current = data.gameState.current;
+            scores = data.gameState.scores;
+            matchedSet = new Set(data.gameState.matchedSet || []);
+            history = data.gameState.history || [];
+
+            createPlayerCards();
+            renderBoardGrid();
+            updateScoreboard();
+            redrawBoard();
+
+            // Listen for game state changes
+            roomRef.child('gameState').on('value', (snapshot) => {
+                const state = snapshot.val();
+                if (!state) return;
+
+                board = state.board;
+                current = state.current;
+                scores = state.scores;
+                matchedSet = new Set(state.matchedSet || []);
+                history = state.history || [];
+
+                updateScoreboard();
+                redrawBoard();
+
+                if (state.gameOver) {
+                    endGame();
+                }
+            });
+        }
+
+        function redrawBoard() {
+            document.querySelectorAll('.cell').forEach(cell => {
+                const r = parseInt(cell.dataset.r);
+                const c = parseInt(cell.dataset.c);
+                const cellData = board[r][c];
+
+                if (cellData) {
+                    cell.textContent = cellData.val;
+                    cell.style.color = cellData.color;
+                    cell.classList.add('filled');
+                } else {
+                    cell.textContent = '';
+                    cell.style.color = '';
+                    cell.classList.remove('filled');
+                }
+            });
+
+            // Redraw lines
+            svg.innerHTML = '';
+            // TODO: Store and redraw matched lines
+        }
+
+        // ============ LOCAL MULTIPLAYER ============
         function createPlayerInputs() {
             const count = parseInt(playerCountSelect.value);
             playersContainer.innerHTML = '';
@@ -457,9 +865,6 @@
         }
 
         playerCountSelect.addEventListener('change', createPlayerInputs);
-        createPlayerInputs();
-
-        // --- GAME FLOW ---
 
         startBtn.addEventListener('click', () => {
             n = parseInt(gridSizeIn.value);
@@ -487,12 +892,14 @@
 
         menuBtn.addEventListener('click', () => {
             if (confirm("Exit current game?")) {
+                if (roomRef) roomRef.off();
                 goToMenu();
             }
         });
 
         modalMenuBtn.addEventListener('click', () => {
             modal.classList.add('hidden');
+            if (roomRef) roomRef.off();
             goToMenu();
         });
 
@@ -503,14 +910,18 @@
 
         function goToMenu() {
             gameUI.classList.add('hidden');
-            setupPanel.classList.remove('hidden');
+            setupPanel.classList.add('hidden');
+            lobbyPanel.classList.add('hidden');
+            modePanel.classList.remove('hidden');
+            isOnlineMode = false;
+            roomCode = null;
         }
 
         function createPlayerCards() {
-            // Clear existing cards except menu button
             playerCardsContainer.innerHTML = '<button class="secondary" id="menuBtn" style="background:#475569;">Back to Menu</button>';
             document.getElementById('menuBtn').addEventListener('click', () => {
                 if (confirm("Exit current game?")) {
+                    if (roomRef) roomRef.off();
                     goToMenu();
                 }
             });
@@ -571,6 +982,15 @@
 
             if (board[r][c] !== null) return;
 
+            // Check if it's this player's turn in online mode
+            if (isOnlineMode) {
+                const myIndex = players.findIndex(p => p.id === myPlayerId);
+                if (myIndex !== current) {
+                    log("Not your turn!");
+                    return;
+                }
+            }
+
             document.querySelectorAll('.chooser').forEach(el => el.remove());
             createChooser(e.target, r, c);
         }
@@ -605,7 +1025,7 @@
             }, 0);
         }
 
-        function makeMove(r, c, letter) {
+        async function makeMove(r, c, letter) {
             document.querySelectorAll('.chooser').forEach(el => el.remove());
 
             board[r][c] = { val: letter, color: players[current].color };
@@ -626,13 +1046,25 @@
                     highlightCells(m.coords, players[current].color);
                 });
                 log(`${players[current].name} scored ${newMatches.length} point(s)!`);
-                if (isFull()) endGame();
             } else {
                 current = (current + 1) % players.length;
             }
 
             updateScoreboard();
-            if (isFull() && newMatches.length === 0) endGame();
+
+            // Update Firebase if online
+            if (isOnlineMode && roomRef) {
+                await roomRef.child('gameState').update({
+                    board: board,
+                    current: current,
+                    scores: scores,
+                    history: history,
+                    matchedSet: Array.from(matchedSet),
+                    gameOver: isFull()
+                });
+            }
+
+            if (isFull()) endGame();
         }
 
         function checkSOS(r, c) {
@@ -755,28 +1187,6 @@
             div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
             logEl.prepend(div);
         }
-
-        // Window Resize Logic
-        let resizeTimer;
-        window.addEventListener('resize', () => {
-            clearTimeout(resizeTimer);
-            resizeTimer = setTimeout(() => {
-                const savedHistory = [...history];
-                board = Array.from({ length: n }, () => Array.from({ length: n }, () => null));
-                matchedSet.clear();
-                scores = Array(players.length).fill(0);
-                svg.innerHTML = '';
-                document.querySelectorAll('.cell').forEach(c => {
-                    c.textContent = ''; c.className = 'cell'; c.style.color = ''; c.style.boxShadow = ''; c.style.background = '';
-                });
-                history = [];
-                savedHistory.forEach(m => {
-                    current = m.playerIdx;
-                    makeMove(m.r, m.c, m.val);
-                });
-            }, 200);
-        });
-
     </script>
 </body>
 
