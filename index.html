@@ -502,14 +502,14 @@
     <script>
         // ============ FIREBASE CONFIG ============
         const firebaseConfig = {
-            apiKey: "AIzaSyC6hSxIsfCADnYtnRJsmYMzbT2RmyLX0wc",
-            authDomain: "sos-game-55b45.firebaseapp.com",
-            databaseURL: "https://sos-game-55b45-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "sos-game-55b45",
-            storageBucket: "sos-game-55b45.firebasestorage.app",
-            messagingSenderId: "134808829880",
-            appId: "1:134808829880:web:846ae8a2eb9fd2c85ad94d"
-        };
+                apiKey: "AIzaSyC6hSxIsfCADnYtnRJsmYMzbT2RmyLX0wc",
+                authDomain: "sos-game-55b45.firebaseapp.com",
+                databaseURL: "https://sos-game-55b45-default-rtdb.asia-southeast1.firebasedatabase.app",
+                projectId: "sos-game-55b45",
+                storageBucket: "sos-game-55b45.firebasestorage.app",
+                messagingSenderId: "134808829880",
+                appId: "1:134808829880:web:846ae8a2eb9fd2c85ad94d"
+            };
 
         // Initialize Firebase
         let db = null;
@@ -768,8 +768,17 @@
 
             n = data.gridSize;
 
+            // Create initial board as nested objects (Firebase-friendly)
+            const initialBoard = {};
+            for (let r = 0; r < n; r++) {
+                initialBoard[r] = {};
+                for (let c = 0; c < n; c++) {
+                    initialBoard[r][c] = null;
+                }
+            }
+
             const initialState = {
-                board: Array.from({ length: n }, () => Array(n).fill(null)),
+                board: initialBoard,
                 current: 0,
                 scores: Array(players.length).fill(0),
                 history: [],
@@ -793,9 +802,9 @@
                 .map(([id, p]) => ({ id, ...p }));
 
             n = data.gridSize;
-            board = data.gameState.board;
+            board = convertFirebaseBoard(data.gameState.board, n);
             current = data.gameState.current;
-            scores = data.gameState.scores;
+            scores = Object.values(data.gameState.scores || Array(players.length).fill(0));
             matchedSet = new Set(data.gameState.matchedSet || []);
             history = data.gameState.history || [];
 
@@ -809,9 +818,9 @@
                 const state = snapshot.val();
                 if (!state) return;
 
-                board = state.board;
+                board = convertFirebaseBoard(state.board, n);
                 current = state.current;
-                scores = state.scores;
+                scores = Object.values(state.scores || Array(players.length).fill(0));
                 matchedSet = new Set(state.matchedSet || []);
                 history = state.history || [];
 
@@ -824,10 +833,36 @@
             });
         }
 
+        // Convert Firebase object back to 2D array
+        function convertFirebaseBoard(fbBoard, size) {
+            const newBoard = Array.from({ length: size }, () => Array(size).fill(null));
+
+            if (!fbBoard) return newBoard;
+
+            // Handle if Firebase returned an object instead of array
+            const boardArray = Array.isArray(fbBoard) ? fbBoard : Object.values(fbBoard);
+
+            for (let r = 0; r < size; r++) {
+                const row = boardArray[r];
+                if (row) {
+                    const rowArray = Array.isArray(row) ? row : Object.values(row);
+                    for (let c = 0; c < size; c++) {
+                        newBoard[r][c] = rowArray[c] || null;
+                    }
+                }
+            }
+
+            return newBoard;
+        }
+
         function redrawBoard() {
             document.querySelectorAll('.cell').forEach(cell => {
                 const r = parseInt(cell.dataset.r);
                 const c = parseInt(cell.dataset.c);
+
+                // Safety check for board structure
+                if (!board[r]) return;
+
                 const cellData = board[r][c];
 
                 if (cellData) {
@@ -980,7 +1015,8 @@
             const r = parseInt(e.target.dataset.r);
             const c = parseInt(e.target.dataset.c);
 
-            if (board[r][c] !== null) return;
+            // Defensive check for board structure
+            if (!board[r] || board[r][c] !== null) return;
 
             // Check if it's this player's turn in online mode
             if (isOnlineMode) {
@@ -1054,8 +1090,17 @@
 
             // Update Firebase if online
             if (isOnlineMode && roomRef) {
+                // Convert board to Firebase-friendly format (nested objects)
+                const fbBoard = {};
+                for (let r = 0; r < n; r++) {
+                    fbBoard[r] = {};
+                    for (let c = 0; c < n; c++) {
+                        fbBoard[r][c] = board[r][c];
+                    }
+                }
+
                 await roomRef.child('gameState').update({
-                    board: board,
+                    board: fbBoard,
                     current: current,
                     scores: scores,
                     history: history,
@@ -1073,7 +1118,8 @@
 
             const getVal = (row, col) => {
                 if (row < 0 || col < 0 || row >= n || col >= n) return '';
-                return board[row][col] ? board[row][col].val : '';
+                if (!board[row] || !board[row][col]) return '';
+                return board[row][col].val || '';
             };
 
             dirs.forEach(([dr, dc]) => {
@@ -1134,6 +1180,9 @@
             players.forEach((player, idx) => {
                 const scoreEl = document.getElementById(`score${idx}`);
                 const cardEl = document.getElementById(`card${idx}`);
+
+                // Ensure scores array exists and has proper length
+                if (!scores[idx] && scores[idx] !== 0) scores[idx] = 0;
 
                 if (scoreEl) scoreEl.textContent = scores[idx];
 
