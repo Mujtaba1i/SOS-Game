@@ -501,15 +501,15 @@
 
     <script>
         // ============ FIREBASE CONFIG ============
-        const firebaseConfig = {
-                apiKey: "AIzaSyC6hSxIsfCADnYtnRJsmYMzbT2RmyLX0wc",
-                authDomain: "sos-game-55b45.firebaseapp.com",
-                databaseURL: "https://sos-game-55b45-default-rtdb.asia-southeast1.firebasedatabase.app",
-                projectId: "sos-game-55b45",
-                storageBucket: "sos-game-55b45.firebasestorage.app",
-                messagingSenderId: "134808829880",
-                appId: "1:134808829880:web:846ae8a2eb9fd2c85ad94d"
-            };
+    const firebaseConfig = {
+            apiKey: "AIzaSyC6hSxIsfCADnYtnRJsmYMzbT2RmyLX0wc",
+            authDomain: "sos-game-55b45.firebaseapp.com",
+            databaseURL: "https://sos-game-55b45-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "sos-game-55b45",
+            storageBucket: "sos-game-55b45.firebasestorage.app",
+            messagingSenderId: "134808829880",
+            appId: "1:134808829880:web:846ae8a2eb9fd2c85ad94d"
+        };
 
         // Initialize Firebase
         let db = null;
@@ -768,21 +768,14 @@
 
             n = data.gridSize;
 
-            // Create initial board as nested objects (Firebase-friendly)
-            const initialBoard = {};
-            for (let r = 0; r < n; r++) {
-                initialBoard[r] = {};
-                for (let c = 0; c < n; c++) {
-                    initialBoard[r][c] = null;
-                }
-            }
-
             const initialState = {
-                board: initialBoard,
+                board: Array(n).fill(null).map(() => Array(n).fill(null)),
                 current: 0,
                 scores: Array(players.length).fill(0),
                 history: [],
-                matchedSet: []
+                matchedSet: [],
+                matchedLines: [],
+                gameOver: false
             };
 
             await roomRef.update({
@@ -790,10 +783,20 @@
                 gameState: initialState
             });
 
-            loadOnlineGame(data);
+            // Wait a bit for Firebase to sync, then load
+            setTimeout(() => {
+                roomRef.once('value').then(snap => {
+                    loadOnlineGame(snap.val());
+                });
+            }, 500);
         });
 
         function loadOnlineGame(data) {
+            if (!data || !data.gameState) {
+                console.error('Invalid game data:', data);
+                return;
+            }
+
             lobbyPanel.classList.add('hidden');
             gameUI.classList.remove('hidden');
 
@@ -803,8 +806,9 @@
 
             n = data.gridSize;
             board = convertFirebaseBoard(data.gameState.board, n);
-            current = data.gameState.current;
-            scores = Object.values(data.gameState.scores || Array(players.length).fill(0));
+            current = data.gameState.current || 0;
+            scores = Array.isArray(data.gameState.scores) ? data.gameState.scores : Object.values(data.gameState.scores || {});
+            if (scores.length === 0) scores = Array(players.length).fill(0);
             matchedSet = new Set(data.gameState.matchedSet || []);
             history = data.gameState.history || [];
 
@@ -814,40 +818,84 @@
             redrawBoard();
 
             // Listen for game state changes
+            roomRef.child('gameState').off(); // Remove old listeners
             roomRef.child('gameState').on('value', (snapshot) => {
                 const state = snapshot.val();
                 if (!state) return;
 
                 board = convertFirebaseBoard(state.board, n);
-                current = state.current;
-                scores = Object.values(state.scores || Array(players.length).fill(0));
+                current = state.current || 0;
+                scores = Array.isArray(state.scores) ? state.scores : Object.values(state.scores || {});
+                if (scores.length === 0) scores = Array(players.length).fill(0);
                 matchedSet = new Set(state.matchedSet || []);
                 history = state.history || [];
+
+                // Check if this is a reset (empty history)
+                if (history.length === 0 && modal && !modal.classList.contains('hidden')) {
+                    modal.classList.add('hidden');
+                    logEl.innerHTML = '';
+                    log('Game has been reset by host!');
+                }
 
                 updateScoreboard();
                 redrawBoard();
 
-                if (state.gameOver) {
-                    endGame();
+                // Redraw all matched lines
+                svg.innerHTML = '';
+                if (state.matchedLines) {
+                    state.matchedLines.forEach(line => {
+                        drawLine(line.coords, line.color);
+                        highlightCells(line.coords, line.color);
+                    });
+                }
+
+                if (state.gameOver && history.length > 0) {
+                    setTimeout(() => endGame(), 500);
                 }
             });
         }
 
-        // Convert Firebase object back to 2D array
+        // Convert Firebase board to proper 2D array
         function convertFirebaseBoard(fbBoard, size) {
             const newBoard = Array.from({ length: size }, () => Array(size).fill(null));
 
             if (!fbBoard) return newBoard;
 
-            // Handle if Firebase returned an object instead of array
-            const boardArray = Array.isArray(fbBoard) ? fbBoard : Object.values(fbBoard);
-
-            for (let r = 0; r < size; r++) {
-                const row = boardArray[r];
-                if (row) {
-                    const rowArray = Array.isArray(row) ? row : Object.values(row);
-                    for (let c = 0; c < size; c++) {
-                        newBoard[r][c] = rowArray[c] || null;
+            // Handle both array and object formats
+            if (Array.isArray(fbBoard)) {
+                for (let r = 0; r < size && r < fbBoard.length; r++) {
+                    if (fbBoard[r]) {
+                        if (Array.isArray(fbBoard[r])) {
+                            for (let c = 0; c < size && c < fbBoard[r].length; c++) {
+                                newBoard[r][c] = fbBoard[r][c];
+                            }
+                        } else {
+                            // Row is an object
+                            const rowData = fbBoard[r];
+                            for (let c = 0; c < size; c++) {
+                                if (rowData[c] !== undefined) {
+                                    newBoard[r][c] = rowData[c];
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                // fbBoard is an object
+                for (let r = 0; r < size; r++) {
+                    if (fbBoard[r]) {
+                        const rowData = fbBoard[r];
+                        if (Array.isArray(rowData)) {
+                            for (let c = 0; c < size && c < rowData.length; c++) {
+                                newBoard[r][c] = rowData[c];
+                            }
+                        } else {
+                            for (let c = 0; c < size; c++) {
+                                if (rowData[c] !== undefined) {
+                                    newBoard[r][c] = rowData[c];
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -873,12 +921,10 @@
                     cell.textContent = '';
                     cell.style.color = '';
                     cell.classList.remove('filled');
+                    cell.style.boxShadow = '';
+                    cell.style.background = '';
                 }
             });
-
-            // Redraw lines
-            svg.innerHTML = '';
-            // TODO: Store and redraw matched lines
         }
 
         // ============ LOCAL MULTIPLAYER ============
@@ -934,13 +980,47 @@
 
         modalMenuBtn.addEventListener('click', () => {
             modal.classList.add('hidden');
-            if (roomRef) roomRef.off();
+            if (roomRef) {
+                roomRef.off();
+                // Clean up the room if host
+                if (isOnlineMode && players.length > 0) {
+                    const myPlayer = players.find(p => p.id === myPlayerId);
+                    if (myPlayer && myPlayer.isHost) {
+                        roomRef.remove();
+                    }
+                }
+            }
             goToMenu();
         });
 
-        modalRestartBtn.addEventListener('click', () => {
+        modalRestartBtn.addEventListener('click', async () => {
             modal.classList.add('hidden');
-            resetGame();
+
+            if (isOnlineMode) {
+                // Only host can restart online games
+                const myPlayer = players.find(p => p.id === myPlayerId);
+                if (!myPlayer || !myPlayer.isHost) {
+                    alert('Only the host can restart the game!');
+                    return;
+                }
+
+                // Reset game state in Firebase
+                const initialState = {
+                    board: Array(n).fill(null).map(() => Array(n).fill(null)),
+                    current: 0,
+                    scores: Array(players.length).fill(0),
+                    history: [],
+                    matchedSet: [],
+                    matchedLines: [],
+                    gameOver: false
+                };
+
+                await roomRef.child('gameState').set(initialState);
+
+                // Local reset will happen via Firebase listener
+            } else {
+                resetGame();
+            }
         });
 
         function goToMenu() {
@@ -953,13 +1033,39 @@
         }
 
         function createPlayerCards() {
-            playerCardsContainer.innerHTML = '<button class="secondary" id="menuBtn" style="background:#475569;">Back to Menu</button>';
-            document.getElementById('menuBtn').addEventListener('click', () => {
+            playerCardsContainer.innerHTML = '';
+
+            // Menu button
+            const menuButton = document.createElement('button');
+            menuButton.className = 'secondary';
+            menuButton.id = 'menuBtn';
+            menuButton.style.background = '#475569';
+            menuButton.textContent = 'Back to Menu';
+            menuButton.addEventListener('click', () => {
                 if (confirm("Exit current game?")) {
                     if (roomRef) roomRef.off();
                     goToMenu();
                 }
             });
+            playerCardsContainer.appendChild(menuButton);
+
+            // End Game button (host only, online only)
+            if (isOnlineMode && players.length > 0) {
+                const myPlayer = players.find(p => p.id === myPlayerId);
+                if (myPlayer && myPlayer.isHost) {
+                    const endGameBtn = document.createElement('button');
+                    endGameBtn.className = 'secondary';
+                    endGameBtn.style.background = '#ef4444';
+                    endGameBtn.textContent = 'End Game';
+                    endGameBtn.addEventListener('click', async () => {
+                        if (confirm('End the game for all players?')) {
+                            await roomRef.child('gameState').update({ gameOver: true });
+                            endGame();
+                        }
+                    });
+                    playerCardsContainer.appendChild(endGameBtn);
+                }
+            }
 
             players.forEach((player, idx) => {
                 const card = document.createElement('div');
@@ -987,6 +1093,8 @@
 
             renderBoardGrid();
             updateScoreboard();
+
+            log('Game reset!');
         }
 
         function renderBoardGrid() {
@@ -1073,6 +1181,7 @@
             cell.classList.add('filled');
 
             const newMatches = checkSOS(r, c);
+            let matchedLines = [];
 
             if (newMatches.length > 0) {
                 scores[current] += newMatches.length;
@@ -1080,6 +1189,8 @@
                     matchedSet.add(m.id);
                     drawLine(m.coords, players[current].color);
                     highlightCells(m.coords, players[current].color);
+                    // Store line data for Firebase sync
+                    matchedLines.push({ coords: m.coords, color: players[current].color });
                 });
                 log(`${players[current].name} scored ${newMatches.length} point(s)!`);
             } else {
@@ -1090,23 +1201,23 @@
 
             // Update Firebase if online
             if (isOnlineMode && roomRef) {
-                // Convert board to Firebase-friendly format (nested objects)
-                const fbBoard = {};
-                for (let r = 0; r < n; r++) {
-                    fbBoard[r] = {};
-                    for (let c = 0; c < n; c++) {
-                        fbBoard[r][c] = board[r][c];
-                    }
-                }
+                try {
+                    const snapshot = await roomRef.child('gameState').once('value');
+                    const currentState = snapshot.val() || {};
+                    const existingLines = currentState.matchedLines || [];
 
-                await roomRef.child('gameState').update({
-                    board: fbBoard,
-                    current: current,
-                    scores: scores,
-                    history: history,
-                    matchedSet: Array.from(matchedSet),
-                    gameOver: isFull()
-                });
+                    await roomRef.child('gameState').update({
+                        board: board,
+                        current: current,
+                        scores: scores,
+                        history: history,
+                        matchedSet: Array.from(matchedSet),
+                        matchedLines: [...existingLines, ...matchedLines],
+                        gameOver: isFull()
+                    });
+                } catch (error) {
+                    console.error('Firebase update error:', error);
+                }
             }
 
             if (isFull()) endGame();
@@ -1221,6 +1332,14 @@
 
             const scoreText = players.map((p, idx) => `${p.name}: ${scores[idx]}`).join(' | ');
             finalScore.textContent = scoreText;
+
+            // Show/hide Play Again button based on mode and role
+            if (isOnlineMode) {
+                const myPlayer = players.find(p => p.id === myPlayerId);
+                modalRestartBtn.style.display = (myPlayer && myPlayer.isHost) ? 'block' : 'none';
+            } else {
+                modalRestartBtn.style.display = 'block';
+            }
 
             modal.classList.remove('hidden');
             log(`--- GAME OVER: ${winnerMsg} ---`);
