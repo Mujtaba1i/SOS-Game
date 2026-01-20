@@ -191,7 +191,7 @@
             background: #1e293b;
             border: 2px solid transparent;
             opacity: 0.7;
-            min-width: 160px;
+            min-width: 180px;
             position: relative;
         }
 
@@ -216,25 +216,25 @@
         .timer-container {
             display: flex;
             align-items: center;
-            gap: 10px;
-            padding: 8px 16px;
+            gap: 8px;
+            padding: 6px 12px;
             background: rgba(0, 0, 0, 0.3);
-            border-radius: 10px;
-            margin-bottom: 10px;
+            border-radius: 8px;
+            border: 1px solid #334155;
         }
 
         .player-timer {
             position: absolute;
-            top: -8px;
-            right: -8px;
+            top: -12px;
+            right: -12px;
             background: #0f172a;
-            border-radius: 50%;
-            width: 28px;
+            border-radius: 12px;
+            min-width: 50px;
             height: 28px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 11px;
+            font-size: 14px;
             font-weight: 700;
             font-family: monospace;
             color: #3b82f6;
@@ -242,6 +242,8 @@
             z-index: 1;
             opacity: 0;
             transition: opacity 0.3s ease;
+            padding: 0 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
         }
 
         .player-card.active .player-timer {
@@ -262,23 +264,26 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            padding: 6px 12px;
+            padding: 8px 16px;
             background: rgba(0, 0, 0, 0.3);
-            border-radius: 8px;
-            border: 1px solid #334155;
+            border-radius: 10px;
+            border: 2px solid #334155;
+            margin-left: auto;
         }
 
         .global-timer-label {
-            font-size: 12px;
+            font-size: 14px;
             color: #94a3b8;
+            font-weight: 600;
         }
 
         .global-timer-display {
-            font-size: 14px;
-            font-weight: 700;
+            font-size: 18px;
+            font-weight: 800;
             font-family: monospace;
             color: #3b82f6;
-            min-width: 45px;
+            min-width: 60px;
+            text-align: center;
         }
 
         .global-timer-display.warning {
@@ -865,23 +870,11 @@
             return 'player_' + Math.random().toString(36).substr(2, 9);
         }
 
-        // Format time as MM:SS or SS
+        // Format time as MM:SS
         function formatTime(seconds) {
             const mins = Math.floor(seconds / 60);
             const secs = Math.floor(seconds % 60);
-            if (seconds < 60) {
-                return secs.toString().padStart(2, '0');
-            }
             return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-        }
-
-        // Format short time for player cards (shows seconds only when < 60)
-        function formatShortTime(seconds) {
-            if (seconds < 60) {
-                return seconds.toString();
-            }
-            const mins = Math.floor(seconds / 60);
-            return mins + 'm';
         }
 
         // Start the timer
@@ -941,11 +934,11 @@
             }
         }
 
-        // Update player card timers
+        // Update player card timers - ALWAYS show MM:SS format
         function updatePlayerTimers() {
             playerTimerElements.forEach((timerEl, idx) => {
                 if (idx === current && timerEnabled) {
-                    timerEl.textContent = formatShortTime(timeLeft);
+                    timerEl.textContent = formatTime(timeLeft);
                     timerEl.classList.remove('warning', 'danger');
 
                     // Add warning classes based on time left
@@ -1258,8 +1251,8 @@
 
             const initialState = {
                 board: initialBoard,
-                boardWidth: boardWidth,  // ADD THIS
-                boardHeight: boardHeight, // ADD THIS
+                boardWidth: boardWidth,
+                boardHeight: boardHeight,
                 current: 0,
                 scores: Array(players.length).fill(0),
                 history: [],
@@ -1298,21 +1291,11 @@
                 .sort(([, a], [, b]) => a.index - b.index)
                 .map(([id, p]) => ({ id, ...p }));
 
-            // FIXED: Use boardWidth and boardHeight from gameState if available, otherwise from room data
-            if (data.gameState.boardWidth && data.gameState.boardHeight) {
-                boardWidth = data.gameState.boardWidth;
-                boardHeight = data.gameState.boardHeight;
-            } else {
-                // Fallback to room data
-                boardWidth = data.gridSize;
-                boardHeight = data.gridSize;
-            }
+            // Use boardWidth and boardHeight from gameState
+            boardWidth = data.gameState.boardWidth || data.gridSize;
+            boardHeight = data.gameState.boardHeight || data.gridSize;
 
-            // Use the correct dimensions for converting the board
-            const gridHeight = boardHeight;
-            const gridWidth = boardWidth;
-
-            board = convertFirebaseBoard(data.gameState.board, gridHeight, gridWidth);
+            board = convertFirebaseBoard(data.gameState.board, boardHeight, boardWidth);
             current = data.gameState.current || 0;
             scores = Array.isArray(data.gameState.scores) ? data.gameState.scores : Object.values(data.gameState.scores || {});
             if (scores.length === 0) scores = Array(players.length).fill(0);
@@ -1348,14 +1331,13 @@
                 const state = snapshot.val();
                 if (!state) return;
 
-                // FIXED: Use stored dimensions from gameState
-                const storedWidth = state.boardWidth || boardWidth;
-                const storedHeight = state.boardHeight || boardHeight;
+                // Update dimensions if they changed
+                const newWidth = state.boardWidth || boardWidth;
+                const newHeight = state.boardHeight || boardHeight;
 
-                // Only update dimensions if they changed
-                if (storedWidth !== boardWidth || storedHeight !== boardHeight) {
-                    boardWidth = storedWidth;
-                    boardHeight = storedHeight;
+                if (newWidth !== boardWidth || newHeight !== boardHeight) {
+                    boardWidth = newWidth;
+                    boardHeight = newHeight;
                     renderBoardGrid(); // Re-render grid if dimensions changed
                 }
 
@@ -1402,6 +1384,7 @@
                 }
             });
         }
+
         // Fixed: Convert Firebase board to proper 2D array
         function convertFirebaseBoard(fbBoard, height, width) {
             const newBoard = [];
@@ -1650,8 +1633,8 @@
 
                 const initialState = {
                     board: initialBoard,
-                    boardWidth: boardWidth,  // ADD THIS
-                    boardHeight: boardHeight, // ADD THIS
+                    boardWidth: boardWidth,
+                    boardHeight: boardHeight,
                     current: 0,
                     scores: Array(players.length).fill(0),
                     history: [],
@@ -1916,6 +1899,8 @@
 
                     await roomRef.child('gameState').set({
                         board: cleanedBoard,
+                        boardWidth: boardWidth,
+                        boardHeight: boardHeight,
                         current: current,
                         scores: scores,
                         history: history,
