@@ -191,7 +191,8 @@
             background: #1e293b;
             border: 2px solid transparent;
             opacity: 0.7;
-            min-width: 140px;
+            min-width: 160px;
+            position: relative;
         }
 
         .player-card.active {
@@ -209,6 +210,99 @@
         .player-name {
             font-size: 14px;
             color: #94a3b8;
+        }
+
+        /* --- TIMER STYLES --- */
+        .timer-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+
+        .player-timer {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #0f172a;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 700;
+            font-family: monospace;
+            color: #3b82f6;
+            border: 2px solid currentColor;
+            z-index: 1;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .player-card.active .player-timer {
+            opacity: 1;
+        }
+
+        .player-timer.warning {
+            color: #f59e0b;
+            animation: pulse 1s infinite;
+        }
+
+        .player-timer.danger {
+            color: #ef4444;
+            animation: pulse 0.5s infinite;
+        }
+
+        .global-timer {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            border: 1px solid #334155;
+        }
+
+        .global-timer-label {
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+        .global-timer-display {
+            font-size: 14px;
+            font-weight: 700;
+            font-family: monospace;
+            color: #3b82f6;
+            min-width: 45px;
+        }
+
+        .global-timer-display.warning {
+            color: #f59e0b;
+            animation: pulse 1s infinite;
+        }
+
+        .global-timer-display.danger {
+            color: #ef4444;
+            animation: pulse 0.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+
+            100% {
+                opacity: 1;
+            }
         }
 
         /* --- BOARD --- */
@@ -416,6 +510,27 @@
                 </select>
                 <label>Grid Size (3 - 20)</label>
                 <input id="onlineGridSize" type="number" min="3" max="20" value="8">
+
+                <!-- Timer settings for online mode -->
+                <div style="margin-top: 16px; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                        <input type="checkbox" id="onlineTimerCheckbox" checked style="width: auto;">
+                        <label for="onlineTimerCheckbox" style="margin: 0;">No Timer</label>
+                    </div>
+                    <div id="onlineTimerSettings" class="hidden">
+                        <label>Time per move (minutes)</label>
+                        <select id="onlineTimerDuration">
+                            <option value="0.5">0.5 min</option>
+                            <option value="1">1 min</option>
+                            <option value="1.5">1.5 min</option>
+                            <option value="2" selected>2 min</option>
+                            <option value="3">3 min</option>
+                            <option value="5">5 min</option>
+                            <option value="10">10 min</option>
+                        </select>
+                    </div>
+                </div>
+
                 <button id="createRoomBtn">Create Room</button>
             </div>
 
@@ -477,6 +592,26 @@
                 </div>
             </div>
 
+            <!-- Timer settings for local mode -->
+            <div style="margin-top: 16px; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                    <input type="checkbox" id="timerCheckbox" checked style="width: auto;">
+                    <label for="timerCheckbox" style="margin: 0;">No Timer</label>
+                </div>
+                <div id="timerSettings" class="hidden">
+                    <label>Time per move (minutes)</label>
+                    <select id="timerDuration">
+                        <option value="0.5">0.5 min</option>
+                        <option value="1">1 min</option>
+                        <option value="1.5">1.5 min</option>
+                        <option value="2" selected>2 min</option>
+                        <option value="3">3 min</option>
+                        <option value="5">5 min</option>
+                        <option value="10">10 min</option>
+                    </select>
+                </div>
+            </div>
+
             <button id="startBtn">Start Game</button>
             <button class="secondary" id="backBtn"
                 style="width:auto;display:inline-block;margin-top:10px;">Back</button>
@@ -532,6 +667,26 @@
                 </div>
             </div>
 
+            <!-- Timer settings for AI mode -->
+            <div style="margin-top: 16px; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                    <input type="checkbox" id="timerCheckboxAI" checked style="width: auto;">
+                    <label for="timerCheckboxAI" style="margin: 0;">No Timer</label>
+                </div>
+                <div id="timerSettingsAI" class="hidden">
+                    <label>Time per move (minutes)</label>
+                    <select id="timerDurationAI">
+                        <option value="0.5">0.5 min</option>
+                        <option value="1">1 min</option>
+                        <option value="1.5">1.5 min</option>
+                        <option value="2" selected>2 min</option>
+                        <option value="3">3 min</option>
+                        <option value="5">5 min</option>
+                        <option value="10">10 min</option>
+                    </select>
+                </div>
+            </div>
+
             <button id="startAIBtn">Start Game</button>
             <button class="secondary" id="backAIBtn"
                 style="width:auto;display:inline-block;margin-top:10px;">Back</button>
@@ -542,6 +697,10 @@
 
             <div class="game-header" id="playerCardsContainer">
                 <button class="secondary" id="menuBtn" style="background:#475569;">Back to Menu</button>
+                <div id="globalTimer" class="global-timer hidden">
+                    <span class="global-timer-label">Time Left:</span>
+                    <span id="globalTimerDisplay" class="global-timer-display">02:00</span>
+                </div>
             </div>
 
             <div class="board-container">
@@ -574,14 +733,14 @@
     <script>
         // ============ FIREBASE CONFIG ============
         const firebaseConfig = {
-                apiKey: "AIzaSyC6hSxIsfCADnYtnRJsmYMzbT2RmyLX0wc",
-                authDomain: "sos-game-55b45.firebaseapp.com",
-                databaseURL: "https://sos-game-55b45-default-rtdb.asia-southeast1.firebasedatabase.app",
-                projectId: "sos-game-55b45",
-                storageBucket: "sos-game-55b45.firebasestorage.app",
-                messagingSenderId: "134808829880",
-                appId: "1:134808829880:web:846ae8a2eb9fd2c85ad94d"
-            };
+            apiKey: "AIzaSyC6hSxIsfCADnYtnRJsmYMzbT2RmyLX0wc",
+            authDomain: "sos-game-55b45.firebaseapp.com",
+            databaseURL: "https://sos-game-55b45-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "sos-game-55b45",
+            storageBucket: "sos-game-55b45.firebasestorage.app",
+            messagingSenderId: "134808829880",
+            appId: "1:134808829880:web:846ae8a2eb9fd2c85ad94d"
+        };
 
         // Initialize Firebase
         let db = null;
@@ -606,6 +765,8 @@
         const svg = document.getElementById('svgLayer');
         const logEl = document.getElementById('log');
         const playerCardsContainer = document.getElementById('playerCardsContainer');
+        const globalTimer = document.getElementById('globalTimer');
+        const globalTimerDisplay = document.getElementById('globalTimerDisplay');
 
         // Mode buttons
         const localBtn = document.getElementById('localBtn');
@@ -613,6 +774,19 @@
         const createOnlineBtn = document.getElementById('createOnlineBtn');
         const joinOnlineBtn = document.getElementById('joinOnlineBtn');
         const backToModeBtn = document.getElementById('backToModeBtn');
+
+        // Timer elements
+        const timerCheckbox = document.getElementById('timerCheckbox');
+        const timerSettings = document.getElementById('timerSettings');
+        const timerDurationSelect = document.getElementById('timerDuration');
+
+        const timerCheckboxAI = document.getElementById('timerCheckboxAI');
+        const timerSettingsAI = document.getElementById('timerSettingsAI');
+        const timerDurationAI = document.getElementById('timerDurationAI');
+
+        const onlineTimerCheckbox = document.getElementById('onlineTimerCheckbox');
+        const onlineTimerSettings = document.getElementById('onlineTimerSettings');
+        const onlineTimerDuration = document.getElementById('onlineTimerDuration');
 
         // AI setup elements
         const aiSetupPanel = document.getElementById('aiSetupPanel');
@@ -669,6 +843,14 @@
         let aiEnabled = false;
         let aiPlayerIndex = -1;
 
+        // Timer state
+        let timerEnabled = false;
+        let timerDuration = 120; // seconds (2 minutes default)
+        let timerInterval = null;
+        let timeLeft = 0;
+        let turnStartTime = null;
+        let playerTimerElements = [];
+
         // ============ UTILITY FUNCTIONS ============
         function generateRoomCode() {
             const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -682,6 +864,165 @@
         function generatePlayerId() {
             return 'player_' + Math.random().toString(36).substr(2, 9);
         }
+
+        // Format time as MM:SS or SS
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            if (seconds < 60) {
+                return secs.toString().padStart(2, '0');
+            }
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // Format short time for player cards (shows seconds only when < 60)
+        function formatShortTime(seconds) {
+            if (seconds < 60) {
+                return seconds.toString();
+            }
+            const mins = Math.floor(seconds / 60);
+            return mins + 'm';
+        }
+
+        // Start the timer
+        function startTimer() {
+            if (!timerEnabled) {
+                globalTimer.classList.add('hidden');
+                updatePlayerTimers();
+                return;
+            }
+
+            globalTimer.classList.remove('hidden');
+            timeLeft = timerDuration;
+            turnStartTime = Date.now();
+            updateTimerDisplays();
+
+            // Clear existing interval
+            if (timerInterval) clearInterval(timerInterval);
+
+            // Start new interval
+            timerInterval = setInterval(() => {
+                const elapsedSeconds = Math.floor((Date.now() - turnStartTime) / 1000);
+                timeLeft = Math.max(0, timerDuration - elapsedSeconds);
+                updateTimerDisplays();
+
+                if (timeLeft <= 0) {
+                    timerExpired();
+                }
+            }, 1000);
+        }
+
+        // Stop the timer
+        function stopTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+        }
+
+        // Update all timer displays
+        function updateTimerDisplays() {
+            updateGlobalTimerDisplay();
+            updatePlayerTimers();
+        }
+
+        // Update global timer display
+        function updateGlobalTimerDisplay() {
+            globalTimerDisplay.textContent = formatTime(timeLeft);
+
+            // Remove previous classes
+            globalTimerDisplay.classList.remove('warning', 'danger');
+
+            // Add warning classes based on time left
+            if (timeLeft <= 30) {
+                globalTimerDisplay.classList.add('danger');
+            } else if (timeLeft <= 60) {
+                globalTimerDisplay.classList.add('warning');
+            }
+        }
+
+        // Update player card timers
+        function updatePlayerTimers() {
+            playerTimerElements.forEach((timerEl, idx) => {
+                if (idx === current && timerEnabled) {
+                    timerEl.textContent = formatShortTime(timeLeft);
+                    timerEl.classList.remove('warning', 'danger');
+
+                    // Add warning classes based on time left
+                    if (timeLeft <= 30) {
+                        timerEl.classList.add('danger');
+                    } else if (timeLeft <= 60) {
+                        timerEl.classList.add('warning');
+                    }
+                } else {
+                    timerEl.textContent = '';
+                    timerEl.classList.remove('warning', 'danger');
+                }
+            });
+        }
+
+        // Handle timer expiration
+        function timerExpired() {
+            stopTimer();
+            log(`${players[current].name}'s time expired!`);
+
+            // Make a random move for the current player
+            const emptyCells = [];
+            for (let r = 0; r < boardHeight; r++) {
+                for (let c = 0; c < boardWidth; c++) {
+                    if (board[r][c] === null) {
+                        emptyCells.push({ r, c });
+                    }
+                }
+            }
+
+            if (emptyCells.length > 0) {
+                const randomCell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+                const randomLetter = Math.random() > 0.5 ? 'S' : 'O';
+                makeMove(randomCell.r, randomCell.c, randomLetter, true);
+            } else {
+                // No empty cells, game over
+                endGame();
+            }
+        }
+
+        // Reset timer for new turn
+        function resetTimerForNewTurn() {
+            stopTimer();
+
+            if (timerEnabled && !isFull()) {
+                // Wait a moment before starting timer for next player
+                setTimeout(startTimer, 500);
+            }
+        }
+
+        // ============ TIMER SETUP HANDLERS ============
+        // Local timer checkbox handler
+        timerCheckbox.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                timerSettings.classList.add('hidden');
+            } else {
+                timerSettings.classList.remove('hidden');
+            }
+        });
+
+        // AI timer checkbox handler
+        timerCheckboxAI.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                timerSettingsAI.classList.add('hidden');
+            } else {
+                timerSettingsAI.classList.remove('hidden');
+            }
+        });
+
+        // Online timer checkbox handler
+        onlineTimerCheckbox.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                onlineTimerSettings.classList.add('hidden');
+            } else {
+                onlineTimerSettings.classList.remove('hidden');
+            }
+        });
 
         // ============ MODE SELECTION ============
         localBtn.addEventListener('click', () => {
@@ -776,10 +1117,16 @@
             const maxPlayers = parseInt(document.getElementById('onlinePlayerCount').value);
             const gridSize = parseInt(document.getElementById('onlineGridSize').value);
 
+            // Get timer settings
+            const useTimer = !document.getElementById('onlineTimerCheckbox').checked;
+            const timerMinutes = parseFloat(document.getElementById('onlineTimerDuration').value) || 2;
+
             const roomData = {
                 host: myPlayerId,
                 maxPlayers: maxPlayers,
                 gridSize: gridSize,
+                timerEnabled: useTimer,
+                timerDuration: timerMinutes * 60, // Convert to seconds
                 players: {
                     [myPlayerId]: {
                         name: hostName,
@@ -896,6 +1243,10 @@
             boardWidth = data.gridSize;
             boardHeight = data.gridSize;
 
+            // Set timer from room data
+            timerEnabled = data.timerEnabled || false;
+            timerDuration = data.timerDuration || 120;
+
             // Create clean initial board with no undefined values
             const initialBoard = [];
             for (let r = 0; r < boardHeight; r++) {
@@ -907,12 +1258,17 @@
 
             const initialState = {
                 board: initialBoard,
+                boardWidth: boardWidth,  // ADD THIS
+                boardHeight: boardHeight, // ADD THIS
                 current: 0,
                 scores: Array(players.length).fill(0),
                 history: [],
                 matchedSet: [],
                 matchedLines: [],
-                gameOver: false
+                gameOver: false,
+                timerEnabled: timerEnabled,
+                timerDuration: timerDuration,
+                turnStartTime: Date.now()
             };
 
             await roomRef.update({
@@ -942,18 +1298,49 @@
                 .sort(([, a], [, b]) => a.index - b.index)
                 .map(([id, p]) => ({ id, ...p }));
 
-            n = data.gridSize;
-            board = convertFirebaseBoard(data.gameState.board, n);
+            // FIXED: Use boardWidth and boardHeight from gameState if available, otherwise from room data
+            if (data.gameState.boardWidth && data.gameState.boardHeight) {
+                boardWidth = data.gameState.boardWidth;
+                boardHeight = data.gameState.boardHeight;
+            } else {
+                // Fallback to room data
+                boardWidth = data.gridSize;
+                boardHeight = data.gridSize;
+            }
+
+            // Use the correct dimensions for converting the board
+            const gridHeight = boardHeight;
+            const gridWidth = boardWidth;
+
+            board = convertFirebaseBoard(data.gameState.board, gridHeight, gridWidth);
             current = data.gameState.current || 0;
             scores = Array.isArray(data.gameState.scores) ? data.gameState.scores : Object.values(data.gameState.scores || {});
             if (scores.length === 0) scores = Array(players.length).fill(0);
             matchedSet = new Set(data.gameState.matchedSet || []);
             history = data.gameState.history || [];
 
+            // Load timer settings
+            timerEnabled = data.gameState.timerEnabled || false;
+            timerDuration = data.gameState.timerDuration || 120;
+            turnStartTime = data.gameState.turnStartTime || Date.now();
+
+            // Calculate time left
+            if (timerEnabled && turnStartTime) {
+                const elapsed = Math.floor((Date.now() - turnStartTime) / 1000);
+                timeLeft = Math.max(0, timerDuration - elapsed);
+            } else {
+                timeLeft = timerDuration;
+            }
+
             createPlayerCards();
             renderBoardGrid();
             updateScoreboard();
             redrawBoard();
+
+            // Start timer if enabled
+            if (timerEnabled) {
+                startTimer();
+            }
 
             // Listen for game state changes
             roomRef.child('gameState').off(); // Remove old listeners
@@ -961,12 +1348,34 @@
                 const state = snapshot.val();
                 if (!state) return;
 
+                // FIXED: Use stored dimensions from gameState
+                const storedWidth = state.boardWidth || boardWidth;
+                const storedHeight = state.boardHeight || boardHeight;
+
+                // Only update dimensions if they changed
+                if (storedWidth !== boardWidth || storedHeight !== boardHeight) {
+                    boardWidth = storedWidth;
+                    boardHeight = storedHeight;
+                    renderBoardGrid(); // Re-render grid if dimensions changed
+                }
+
                 board = convertFirebaseBoard(state.board, boardHeight, boardWidth);
                 current = state.current || 0;
                 scores = Array.isArray(state.scores) ? state.scores : Object.values(state.scores || {});
                 if (scores.length === 0) scores = Array(players.length).fill(0);
                 matchedSet = new Set(state.matchedSet || []);
                 history = state.history || [];
+
+                // Update timer
+                timerEnabled = state.timerEnabled || false;
+                timerDuration = state.timerDuration || 120;
+                turnStartTime = state.turnStartTime || Date.now();
+
+                if (timerEnabled && turnStartTime) {
+                    const elapsed = Math.floor((Date.now() - turnStartTime) / 1000);
+                    timeLeft = Math.max(0, timerDuration - elapsed);
+                    updateTimerDisplays();
+                }
 
                 // Check if this is a reset (empty history)
                 if (history.length === 0 && modal && !modal.classList.contains('hidden')) {
@@ -993,8 +1402,7 @@
                 }
             });
         }
-
-        // Convert Firebase board to proper 2D array
+        // Fixed: Convert Firebase board to proper 2D array
         function convertFirebaseBoard(fbBoard, height, width) {
             const newBoard = [];
 
@@ -1050,16 +1458,8 @@
             return newBoard;
         }
 
-        let lastBoardState = null;
-
+        // Optimized: Only update changed cells
         function redrawBoard() {
-            // Create a snapshot of current board state
-            const currentState = JSON.stringify(board);
-
-            // Only redraw if something actually changed
-            if (currentState === lastBoardState) return;
-            lastBoardState = currentState;
-
             document.querySelectorAll('.cell').forEach(cell => {
                 const r = parseInt(cell.dataset.r);
                 const c = parseInt(cell.dataset.c);
@@ -1076,7 +1476,7 @@
                         cell.classList.add('filled');
                     }
                 } else {
-                    if (cell.textContent !== '') {
+                    if (cell.textContent !== '' || cell.classList.contains('filled')) {
                         cell.textContent = '';
                         cell.style.color = '';
                         cell.classList.remove('filled');
@@ -1126,6 +1526,12 @@
             const count = parseInt(playerCountSelect.value);
             players = [];
 
+            // Get timer settings
+            timerEnabled = !document.getElementById('timerCheckbox').checked;
+            if (timerEnabled) {
+                timerDuration = parseFloat(document.getElementById('timerDuration').value) * 60;
+            }
+
             for (let i = 0; i < count; i++) {
                 const nameInput = document.getElementById(`pName${i}`);
                 const colorInput = document.getElementById(`pColor${i}`);
@@ -1137,6 +1543,11 @@
 
             resetGame();
             createPlayerCards();
+
+            // Start timer if enabled
+            if (timerEnabled) {
+                startTimer();
+            }
 
             setupPanel.classList.add('hidden');
             gameUI.classList.remove('hidden');
@@ -1173,10 +1584,21 @@
                 }
             ];
 
+            // Get timer settings for AI mode
+            timerEnabled = !document.getElementById('timerCheckboxAI').checked;
+            if (timerEnabled) {
+                timerDuration = parseFloat(document.getElementById('timerDurationAI').value) * 60;
+            }
+
             aiPlayerIndex = 1;
 
             resetGame();
             createPlayerCards();
+
+            // Start timer if enabled
+            if (timerEnabled) {
+                startTimer();
+            }
 
             aiSetupPanel.classList.add('hidden');
             gameUI.classList.remove('hidden');
@@ -1207,6 +1629,7 @@
 
         modalRestartBtn.addEventListener('click', async () => {
             modal.classList.add('hidden');
+            stopTimer();
 
             if (isOnlineMode) {
                 // Only host can restart online games
@@ -1227,12 +1650,17 @@
 
                 const initialState = {
                     board: initialBoard,
+                    boardWidth: boardWidth,  // ADD THIS
+                    boardHeight: boardHeight, // ADD THIS
                     current: 0,
                     scores: Array(players.length).fill(0),
                     history: [],
                     matchedSet: [],
                     matchedLines: [],
-                    gameOver: false
+                    gameOver: false,
+                    timerEnabled: timerEnabled,
+                    timerDuration: timerDuration,
+                    turnStartTime: Date.now()
                 };
 
                 await roomRef.child('gameState').set(initialState);
@@ -1245,10 +1673,16 @@
                 if (aiEnabled && current === aiPlayerIndex) {
                     setTimeout(() => makeAIMove(), 800);
                 }
+
+                // Start timer if enabled
+                if (timerEnabled) {
+                    startTimer();
+                }
             }
         });
 
         function goToMenu() {
+            stopTimer();
             gameUI.classList.add('hidden');
             setupPanel.classList.add('hidden');
             lobbyPanel.classList.add('hidden');
@@ -1257,10 +1691,12 @@
             isOnlineMode = false;
             aiEnabled = false;
             roomCode = null;
+            timerEnabled = false;
         }
 
         function createPlayerCards() {
             playerCardsContainer.innerHTML = '';
+            playerTimerElements = [];
 
             // Menu button
             const menuButton = document.createElement('button');
@@ -1304,8 +1740,12 @@
                         <div class="player-score" id="score${idx}">0</div>
                         <div class="player-name">${player.name}</div>
                     </div>
+                    <div class="player-timer" id="playerTimer${idx}"></div>
                 `;
                 playerCardsContainer.appendChild(card);
+
+                // Store timer element reference
+                playerTimerElements.push(document.getElementById(`playerTimer${idx}`));
             });
         }
 
@@ -1325,6 +1765,7 @@
             current = 0;
             logEl.innerHTML = '';
             svg.innerHTML = '';
+            turnStartTime = Date.now();
 
             renderBoardGrid();
             updateScoreboard();
@@ -1426,7 +1867,7 @@
             return cleaned;
         }
 
-        async function makeMove(r, c, letter) {
+        async function makeMove(r, c, letter, isTimeoutMove = false) {
             document.querySelectorAll('.chooser').forEach(el => el.remove());
 
             board[r][c] = { val: letter, color: players[current].color };
@@ -1449,12 +1890,19 @@
                     // Store line data for Firebase sync
                     matchedLines.push({ coords: m.coords, color: players[current].color });
                 });
-                log(`${players[current].name} scored ${newMatches.length} point(s)!`);
+                if (isTimeoutMove) {
+                    log(`${players[current].name} scored ${newMatches.length} point(s) on timeout!`);
+                } else {
+                    log(`${players[current].name} scored ${newMatches.length} point(s)!`);
+                }
             } else {
                 current = (current + 1) % players.length;
             }
 
             updateScoreboard();
+
+            // Reset timer for new turn
+            resetTimerForNewTurn();
 
             // Update Firebase if online
             if (isOnlineMode && roomRef) {
@@ -1473,7 +1921,10 @@
                         history: history,
                         matchedSet: Array.from(matchedSet),
                         matchedLines: [...existingLines, ...matchedLines],
-                        gameOver: isFull()
+                        gameOver: isFull(),
+                        timerEnabled: timerEnabled,
+                        timerDuration: timerDuration,
+                        turnStartTime: Date.now()
                     });
                 } catch (error) {
                     console.error('Firebase update error:', error);
@@ -1686,6 +2137,7 @@
         }
 
         function endGame() {
+            stopTimer();
             const maxScore = Math.max(...scores);
             const winners = players.filter((p, idx) => scores[idx] === maxScore);
 
